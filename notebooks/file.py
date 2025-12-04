@@ -57,14 +57,14 @@ val_dataset = Dataset(start_idx=900, length=100)
 from score_models import ScoreModel, EnergyModel, NCSNpp, MLP, DDPM
 from torch.utils.data import Dataset # Import Dataset
 import torch # Import torch
-B = 8 # changed from 3
+B = 16 # changed from 3
 C = 1
 dimensions = [32, 32, 32]
 
 # NN Architectures support a Unet with 1D convolutions for time series input data
 net = NCSNpp(channels=C, nf=128, ch_mult=[2, 2, 2, 2], dimensions=3, condition = ('input',), condition_input_channels = 1,).to('cuda')
 model = ScoreModel(model=net, sigma_min=0.01, sigma_max=50, device="cuda") # changed beta_max from 40 to 10 # changing beta_min=1e-2, beta_max=10,to sigma_max and sigma_min
-losses = model.fit(train_dataset, val_dataset, epochs=10, batch_size=B, learning_rate=2e-4, checkpoints_directory='/work/hdd/bdne/abonab/run_69') 
+losses = model.fit(train_dataset, val_dataset, epochs=100, batch_size=B, learning_rate=2e-4, checkpoints_directory='/work/hdd/bdne/abonab/run_10') # could change to a different run # each time
 
 import matplotlib.pyplot as plt
 print(losses)
