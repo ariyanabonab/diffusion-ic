@@ -57,7 +57,7 @@ val_dataset = Dataset(start_idx=900, length=100)
 from score_models import ScoreModel, EnergyModel, NCSNpp, MLP, DDPM
 from torch.utils.data import Dataset # Import Dataset
 import torch # Import torch
-B = 16 # changed from 3
+B = 8 # changed from 3
 C = 1
 dimensions = [32, 32, 32]
 
