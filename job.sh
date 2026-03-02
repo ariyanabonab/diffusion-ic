@@ -20,4 +20,4 @@ source ~/.bashrc
 conda activate icdiff
 
 run_number=38
-python ./diffusion_batch_CAMELS_hydro.py --run_number=$run_number
+python ./diffusion_batch_CAMELS_Mgas.py --run_number=$run_number
