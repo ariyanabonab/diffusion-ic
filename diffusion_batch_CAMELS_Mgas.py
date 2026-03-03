@@ -229,19 +229,6 @@ Pk = PKL.XPk([delta_pred, delta_true], BoxSize=box_size, axis=0, MAS=['CIC','CIC
 
 # Compute Cross-Correlation Function
 CCF = PKL.XPk(delta_pred, delta_true, BoxSize=box_size, MAS=['CIC', 'CIC'], axis=0, threads=1)
-# cross power spectrum is better
-# same package ####PKL.XPk 
-
-# ADD THIS
-# plot of cross power spectrum normalized from each individual field
-# <XY> = \int dX dY X*Y
-# field X and field Y
-#quantity = <XY> / sqrt(<XX> <YY>)
-# when they are equal (xx=yy) = 1, on small scales should drop to 0, but large scales
-# x should be as close to y as possible
-# if we can get as close to 1, this is a success !
-# k ~ 2pi / r
-# change axis on right to axis on left on x axis
 
 # Plot Power Spectrum and Cross-Correlation
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
