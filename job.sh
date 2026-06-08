@@ -19,5 +19,6 @@ module load cuda/12.6.1
 source ~/.bashrc
 conda activate icdiff
 
-run_number=38
-python ./diffusion_batch_CAMELS_Mgas.py --run_number=$run_number
+run_number=52
+#python ./diffusion_batch_gas_mcdm.py --run_number=$run_number #--checkpoint_number=10 # last checkpoint ? 
+python ./diffusion_batch_dmonly.py --run_number=$run_number --checkpoint_number=10
