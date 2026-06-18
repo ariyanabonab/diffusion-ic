@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=1P   # Job name
-#SBATCH --array=0-29         # Job array range for lhid
+#SBATCH --job-name=LH   # Job name
+#SBATCH --array=0-999        # Job array range for lhid
 #SBATCH --nodes=1               # Number of nodes
 #SBATCH --ntasks=4            # Number of tasks
 #SBATCH --time=04:00:00         # Time limit
@@ -23,6 +23,6 @@ echo $idx
 # Command to run for each lhid
 cd /u/maho3/git/diffusion-ic/scripts
 
-suite=1P
+suite=LH
 
 python ./process_camels.py --suite=$suite --idx=$idx

@@ -6,7 +6,7 @@ import argparse
 
 
 # Constants
-GRID = 64
+GRID = 128
 BOX_SIZE = 25
 MAS = 'CIC'
 VERBOSE = False
