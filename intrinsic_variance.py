@@ -193,19 +193,121 @@ def compare_true_vs_predicted(true_values, pred_draws, n_boot=10_000, rng=None):
 
 
 # ============================================================
-# NOTE on reproducing Figure 4 (binned by present-day overdensity y)
+# Binning by a conditioning variable (e.g. present-day overdensity y)
 # ============================================================
-# The functions above operate on whatever (N, ...) / (N, M, ...) arrays you
-# hand them. To reproduce the figure you attached:
-#
-#   1. Flatten all voxels from all test fields into one long list, keeping,
-#      for each voxel: its FD value y (used for binning), its true IC value
-#      x^true, and its M predicted IC values x^pred.
-#   2. Bin voxels into ~40 bins by y (e.g. np.digitize or np.histogram_bin_edges).
-#   3. For each bin, call compare_true_vs_predicted(true_values_in_bin,
-#      pred_draws_in_bin) — N here is "how many voxels fell in this bin."
-#   4. Plot mu_true/mu_pred (top panel), delta_mu (2nd panel), sigma_true/
-#      sigma_intrinsic (3rd panel), delta_sigma (4th panel) vs. bin center.
-#
-# This isn't implemented yet — say the word and I'll build the binning +
-# plotting step next.
+
+def bin_and_compute(y_values, true_values, pred_draws, n_bins=40,
+                     binning="quantile", min_points=10, n_boot=300, rng=None):
+    """
+    Reproduces the Figure-4 workflow: bins individual points (typically
+    voxels, pooled across all your test fields) by a conditioning variable y
+    (e.g. the FD/present-day-overdensity value at that voxel), then applies
+    compare_true_vs_predicted() independently within each bin.
+
+    y_values    : ndarray, shape (V,)     — binning variable, one per point
+    true_values : ndarray, shape (V,)     — true value, one per point
+    pred_draws  : ndarray, shape (V, M)   — M posterior draws per point
+    n_bins      : target number of bins
+    binning     : "quantile" (equal points per bin, robust to skewed y) or
+                  "linear" (equal-width bins in y, matches the figure's even
+                  x-axis spacing more closely, but can leave sparse bins)
+    min_points  : bins with fewer points than this are skipped (too noisy
+                  to trust, especially the bootstrap)
+    n_boot      : bootstrap replicates PER BIN — kept modest by default
+                  since this runs 40x; raise it once you're happy with the
+                  binning and want tighter error bars on the final plot.
+
+    Returns a dict of 1D arrays (one entry per surviving bin): bin_center,
+    n_points, mu_true, se_mu_true, sigma_true, se_boot_sigma_true, mu_pred,
+    se_mu_pred, se_boot_mu_pred, sigma_intrinsic, se_boot_sigma_intrinsic,
+    delta_mu, delta_sigma.
+    """
+    y_values = np.asarray(y_values)
+    true_values = np.asarray(true_values)
+    pred_draws = np.asarray(pred_draws)
+    rng = np.random.default_rng() if rng is None else rng
+
+    if binning == "quantile":
+        edges = np.quantile(y_values, np.linspace(0, 1, n_bins + 1))
+        edges = np.unique(edges)  # guard against repeated values collapsing bins
+    elif binning == "linear":
+        edges = np.linspace(y_values.min(), y_values.max(), n_bins + 1)
+    else:
+        raise ValueError("binning must be 'quantile' or 'linear'")
+
+    bin_idx = np.digitize(y_values, edges[1:-1], right=False)
+
+    keys = ["bin_center", "n_points", "mu_true", "se_mu_true", "sigma_true",
+            "se_boot_sigma_true", "mu_pred", "se_mu_pred", "se_boot_mu_pred",
+            "sigma_intrinsic", "se_boot_sigma_intrinsic", "delta_mu", "delta_sigma"]
+    results = {k: [] for k in keys}
+
+    n_bins_actual = len(edges) - 1
+    for b in range(n_bins_actual):
+        mask = bin_idx == b
+        n_pts = int(mask.sum())
+        if n_pts < min_points:
+            continue
+
+        tb = true_values[mask]
+        pb = pred_draws[mask]  # (n_pts, M)
+        stats = compare_true_vs_predicted(tb, pb, n_boot=n_boot, rng=rng)
+
+        results["bin_center"].append(0.5 * (edges[b] + edges[b + 1]))
+        results["n_points"].append(n_pts)
+        for k in keys[2:]:
+            results[k].append(float(stats[k]))
+
+    return {k: np.array(v) for k, v in results.items()}
+
+
+def plot_binned_comparison(results, xlabel="Present-day overdensity y", save_path=None):
+    """
+    Four-panel plot matching Figure 4: mean (top), delta-mean, stdev,
+    delta-stdev — truth in black diamonds, inferred in blue circles.
+
+    results : the dict returned by bin_and_compute()
+    """
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(4, 1, figsize=(8, 12), sharex=True,
+                              gridspec_kw={"height_ratios": [3, 1.5, 3, 1.5]})
+    x = results["bin_center"]
+
+    ax = axes[0]
+    ax.errorbar(x, results["mu_pred"], yerr=results["se_boot_mu_pred"], fmt="o",
+                color="tab:blue", markersize=5, capsize=2, alpha=0.85, label="Inferred")
+    ax.errorbar(x, results["mu_true"], yerr=results["se_mu_true"], fmt="D",
+                color="black", markersize=4, capsize=2, label="Truth")
+    ax.set_ylabel(r"Mean $\mu_x$")
+    ax.legend(fontsize=10)
+    ax.grid(alpha=0.2)
+
+    ax = axes[1]
+    ax.errorbar(x, results["delta_mu"], yerr=results["se_boot_mu_pred"], fmt="o",
+                color="tab:blue", markersize=5, capsize=2, alpha=0.85)
+    ax.axhline(0, color="black", linestyle="--", linewidth=1)
+    ax.set_ylabel(r"$\Delta \mu_x$")
+    ax.grid(alpha=0.2)
+
+    ax = axes[2]
+    ax.errorbar(x, results["sigma_intrinsic"], yerr=results["se_boot_sigma_intrinsic"], fmt="o",
+                color="tab:blue", markersize=5, capsize=2, alpha=0.85, label="Inferred")
+    ax.errorbar(x, results["sigma_true"], yerr=results["se_boot_sigma_true"], fmt="D",
+                color="black", markersize=4, capsize=2, label="Truth")
+    ax.set_ylabel(r"Standard deviation $\sigma_x$")
+    ax.grid(alpha=0.2)
+
+    ax = axes[3]
+    ax.errorbar(x, results["delta_sigma"], yerr=results["se_boot_sigma_intrinsic"], fmt="o",
+                color="tab:blue", markersize=5, capsize=2, alpha=0.85)
+    ax.axhline(0, color="black", linestyle="--", linewidth=1)
+    ax.set_ylabel(r"$\Delta \sigma_x$")
+    ax.set_xlabel(xlabel)
+    ax.grid(alpha=0.2)
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+    return fig
